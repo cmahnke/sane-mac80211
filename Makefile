@@ -1,50 +1,32 @@
 KVERSION ?= $(shell uname -r)
 KERNEL_DIR ?= /lib/modules/$(KVERSION)/build
 PWD := $(shell pwd)
-
-KERNEL_SRC ?= $(PWD)/linux-src
-ifeq ($(wildcard $(KERNEL_SRC)/Makefile),)
-    KERNEL_SRC := /usr/src/linux-src
-endif
-ifeq ($(wildcard $(KERNEL_SRC)/Makefile),)
-    KERNEL_SRC := $(shell ls -d /usr/src/linux-source-* 2>/dev/null | head -n 1)
-endif
-
-ifneq ($(MAKECMDGOALS),clean)
-ifeq ($(wildcard mac80211/Makefile),)
-    $(shell cp -r $(KERNEL_SRC)/net/mac80211 $(PWD)/)
-    $(shell cd mac80211 && patch -p1 -N < ../patch-mlme.patch > /dev/null 2>&1 || true)
-endif
-endif
-# ----------------------------------------------------------
+# Unpack into /tmp to avoid permission issues for non-root users
+KERNEL_SRC := /tmp/linux-src-$(KVERSION)
 
 obj-m := mac80211/
 
-all: ensure_source
-	@echo "Copying mac80211 source from $(KERNEL_SRC)..."
-	@rm -rf mac80211
-	@cp -r $(KERNEL_SRC)/net/mac80211 $(PWD)/
-
-	@echo "Applying patch..."
-	@cd mac80211 && patch -p1 -N < ../patch-mlme.patch || true
-
+all: prepare_source
 	@echo "Building module..."
 	$(MAKE) -C $(KERNEL_DIR) M=$(PWD) CONFIG_MAC80211=m modules
 
+prepare_source: ensure_source
+	@if [ ! -d "mac80211" ]; then \
+		echo "Copying mac80211 source from $(KERNEL_SRC)..."; \
+		cp -r $(KERNEL_SRC)/net/mac80211 $(PWD)/; \
+		echo "Applying patch..."; \
+		cd mac80211 && patch -p1 -N < ../patch-mlme.patch || true; \
+	fi
+
 ensure_source:
 	@if [ ! -f "$(KERNEL_SRC)/Makefile" ]; then \
-		TARBALL=$$(ls /usr/src/linux-source-*.tar.* 2>/dev/null | head -n 1); \
+		TARBALL=$$(ls /usr/src/linux-source-*.tar.bz2 2>/dev/null | head -n 1); \
 		if [ -n "$$TARBALL" ]; then \
-			echo "Extracting kernel source from $$TARBALL..."; \
-			tar -xf "$$TARBALL" -C /usr/src; \
-			for dir in /usr/src/linux-source-*; do \
-				if [ -d "$$dir" ] && [ ! -L "$$dir" ]; then \
-					mv "$$dir" /usr/src/linux-src; \
-					break; \
-				fi \
-			done; \
+			echo "Extracting $$TARBALL to $(KERNEL_SRC)..."; \
+			mkdir -p $(KERNEL_SRC); \
+			tar -xjf "$$TARBALL" -C $(KERNEL_SRC) --strip-components=1; \
 		else \
-			echo "ERROR: Kernel source not found. Please ensure 'linux-source' is installed."; \
+			echo "ERROR: Kernel source tarball not found in /usr/src/."; \
 			exit 1; \
 		fi \
 	fi

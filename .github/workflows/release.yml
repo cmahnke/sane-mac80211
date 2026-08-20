@@ -4,8 +4,8 @@ on:
   push:
     branches:
       - main
-    pull_request:
-    workflow_dispatch:
+  pull_request:
+  workflow_dispatch:
 
 jobs:
   test-build:
@@ -26,21 +26,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential linux-source linux-headers-$(uname -r) patch dkms dpkg-dev
 
-      - name: Fetch Exact Kernel Source
-        run: |
-          TARBALL=$(ls /usr/src/linux-source-*.tar.bz2 | head -n 1)
-          sudo mkdir -p /usr/src/linux-src
-          sudo tar -xjf "$TARBALL" -C /usr/src/linux-src --strip-components=1
-          sudo ln -s /usr/src/linux-src .
-
       - name: Mock Environment and Test Build
         run: |
           KERNEL_VERSION=$(uname -r)
           echo "Testing against kernel version: $KERNEL_VERSION"
-          make KVERSION="$KERNEL_VERSION" \
-               KERNEL_DIR="/lib/modules/$KERNEL_VERSION/build" \
-               KERNEL_SRC="$(pwd)/linux-src" \
-               all
+          # The Makefile will now automatically unpack to /tmp
+          make KVERSION="$KERNEL_VERSION" all
 
       - name: Test DKMS Installation
         run: |
@@ -49,14 +40,12 @@ jobs:
 
           sudo dkms add -m sane-mac80211 -v 1.0
 
-          # Catch build failure, print log, and exit with error
           sudo dkms build -m sane-mac80211 -v 1.0 || {
             echo "::error::DKMS build failed. Dumping make.log:"
             sudo cat /var/lib/dkms/sane-mac80211/1.0/build/make.log || echo "Failed to read make.log"
             exit 1
           }
 
-          # Catch install failure, print log, and exit with error
           sudo dkms install -m sane-mac80211 -v 1.0 || {
             echo "::error::DKMS install failed. Dumping make.log:"
             sudo cat /var/lib/dkms/sane-mac80211/1.0/build/make.log || echo "Failed to read make.log"
