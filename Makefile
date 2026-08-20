@@ -10,8 +10,15 @@ ifeq ($(wildcard $(KERNEL_SRC)/Makefile),)
     KERNEL_SRC := $(shell ls -d /usr/src/linux-source-* 2>/dev/null | head -n 1)
 endif
 
-obj-m := mac80211/
+ifneq ($(MAKECMDGOALS),clean)
+ifeq ($(wildcard mac80211/Makefile),)
+    $(shell cp -r $(KERNEL_SRC)/net/mac80211 $(PWD)/)
+    $(shell cd mac80211 && patch -p1 -N < ../patch-mlme.patch > /dev/null 2>&1 || true)
+endif
+endif
+# ----------------------------------------------------------
 
+obj-m := mac80211/
 
 all: ensure_source
 	@echo "Copying mac80211 source from $(KERNEL_SRC)..."
