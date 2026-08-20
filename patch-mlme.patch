@@ -8,7 +8,7 @@
 +		if (new_ap_level <= 0) {
 +			sdata_dbg(sdata,
 +				"Intercepting advertised deactivation (tried to limit TX power to %d dBm by %pM)\n",
-+                          	pwr_level_cisco, link->u.mgd.bssid);
++                          	new_ap_level, link->u.mgd.bssid);
 +			new_ap_level = 12;
 +		}
  		sdata_dbg(sdata,
