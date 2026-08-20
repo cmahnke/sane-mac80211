@@ -29,7 +29,8 @@ jobs:
       - name: Fetch Exact Kernel Source
         run: |
           TARBALL=$(ls /usr/src/linux-source-*.tar.bz2 | head -n 1)
-          tar -xjf "$TARBALL" -C /usr/src/linux-src --strip-components=1
+          sudo mkdir -p /usr/src/linux-src
+          sudo tar -xjf "$TARBALL" -C /usr/src/linux-src --strip-components=1
           sudo ln -s /usr/src/linux-src .
 
       - name: Mock Environment and Test Build
