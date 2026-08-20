@@ -47,14 +47,25 @@ jobs:
           sudo cp dkms.conf Makefile patch-mlme.patch /usr/src/sane-mac80211-1.0/
 
           sudo dkms add -m sane-mac80211 -v 1.0
-          sudo dkms build -m sane-mac80211 -v 1.0
-          sudo dkms install -m sane-mac80211 -v 1.0
+
+          # Catch build failure, print log, and exit with error
+          sudo dkms build -m sane-mac80211 -v 1.0 || {
+            echo "::error::DKMS build failed. Dumping make.log:"
+            sudo cat /var/lib/dkms/sane-mac80211/1.0/build/make.log || echo "Failed to read make.log"
+            exit 1
+          }
+
+          # Catch install failure, print log, and exit with error
+          sudo dkms install -m sane-mac80211 -v 1.0 || {
+            echo "::error::DKMS install failed. Dumping make.log:"
+            sudo cat /var/lib/dkms/sane-mac80211/1.0/build/make.log || echo "Failed to read make.log"
+            exit 1
+          }
 
           echo "Verifying module placement..."
           ls -l /lib/modules/$(uname -r)/updates/dkms/mac80211.ko
 
           sudo modprobe mac80211 || echo "modprobe failed (expected in CI without specific hardware), but build succeeded!"
-
 
   package-and-deploy:
     name: Build, Sign, and Deploy APT Repository
@@ -69,31 +80,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y dpkg-dev apt-utils
 
-      - name: Setup GPG Environment
-        run: |
-          echo "${{ secrets.GPG_PRIVATE_KEY }}" > private.key
-          echo "${{ secrets.GPG_PUBLIC_KEY }}" > public.key
-          gpg --import private.key
-
       - name: Create Debian Directory Layout
         run: |
           mkdir -p build/sane-mac80211_1.0_all/usr/src/sane-mac80211-1.0
           mkdir -p build/sane-mac80211_1.0_all/DEBIAN
 
+          cp DEBIAN/* build/sane-mac80211_1.0_all/DEBIAN/
           cp dkms.conf Makefile patch-mlme.patch build/sane-mac80211_1.0_all/usr/src/sane-mac80211-1.0/
-
-      - name: Generate Control Metadata
-        run: |
-          cat << 'EOF' > build/sane-mac80211_1.0_all/DEBIAN/control
-          Package: sane-mac80211
-          Version: 1.0
-          Architecture: all
-          Maintainer: Hotspot Fix Maintainer <maintainer@example.com>
-          Depends: dkms, build-essential
-          Section: net
-          Priority: optional
-          Description: Core patch to force mac80211 to ignore iPhone 0dBm power constraints.
-          EOF
 
       - name: Generate Post-Install Actions
         run: |
@@ -120,6 +113,13 @@ jobs:
           dpkg-deb --build build/sane-mac80211_1.0_all
           mkdir repo-dist
           mv build/sane-mac80211_1.0_all.deb repo-dist/
+
+      - name: Setup GPG Environment
+        run: |
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" > private.key
+          echo "${{ secrets.GPG_PUBLIC_KEY }}" > public.key
+          gpg --import private.key
+          rm -f private.key public.key
 
       - name: Generate APT Indexes and Sign Repository
         run: |
