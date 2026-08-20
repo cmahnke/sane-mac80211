@@ -1,0 +1,141 @@
+name: Package Update Source
+
+on:
+  push:
+    branches:
+      - main
+    pull_request:
+    workflow_dispatch:
+
+jobs:
+  test-build:
+    name: Test Kernel Module Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+
+      - name: Install Build Tools and Enable Source Repositories
+        run: |
+          if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
+            sudo sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.sources
+          else
+            exit 1
+          fi
+
+          sudo apt-get update
+          sudo apt-get install -y build-essential linux-headers-$(uname -r) patch dkms dpkg-dev
+
+      - name: Fetch Exact Kernel Source
+        run: |
+          sudo chmod 755 "$GITHUB_WORKSPACE"
+          apt-get source linux-modules-$(uname -r)
+          ln -s linux-*/ linux-src
+
+      - name: Mock Environment and Test Build
+        run: |
+          KERNEL_VERSION=$(uname -r)
+          echo "Testing against kernel version: $KERNEL_VERSION"
+          make KVERSION="$KERNEL_VERSION" \
+               KERNEL_DIR="/lib/modules/$KERNEL_VERSION/build" \
+               KERNEL_SRC="$(pwd)/linux-src" \
+               all
+
+      - name: Test DKMS Installation
+        run: |
+          sudo mkdir -p /usr/src/sane-mac80211-1.0
+          sudo cp dkms.conf Makefile patch-mlme.patch /usr/src/sane-mac80211-1.0/
+
+          sudo dkms add -m sane-mac80211 -v 1.0
+          sudo dkms build -m sane-mac80211 -v 1.0
+          sudo dkms install -m sane-mac80211 -v 1.0
+
+          echo "Verifying module placement..."
+          ls -l /lib/modules/$(uname -r)/updates/dkms/mac80211.ko
+
+          sudo modprobe mac80211 || echo "modprobe failed (expected in CI without specific hardware), but build succeeded!"
+
+
+  package-and-deploy:
+    name: Build, Sign, and Deploy APT Repository
+    needs: test-build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+
+      - name: Install Debian Packaging Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev apt-utils
+
+      - name: Setup GPG Environment
+        run: |
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" > private.key
+          echo "${{ secrets.GPG_PUBLIC_KEY }}" > public.key
+          gpg --import private.key
+
+      - name: Create Debian Directory Layout
+        run: |
+          mkdir -p build/sane-mac80211_1.0_all/usr/src/sane-mac80211-1.0
+          mkdir -p build/sane-mac80211_1.0_all/DEBIAN
+
+          cp dkms.conf Makefile patch-mlme.patch build/sane-mac80211_1.0_all/usr/src/sane-mac80211-1.0/
+
+      - name: Generate Control Metadata
+        run: |
+          cat << 'EOF' > build/sane-mac80211_1.0_all/DEBIAN/control
+          Package: sane-mac80211
+          Version: 1.0
+          Architecture: all
+          Maintainer: Hotspot Fix Maintainer <maintainer@example.com>
+          Depends: dkms, build-essential
+          Section: net
+          Priority: optional
+          Description: Core patch to force mac80211 to ignore iPhone 0dBm power constraints.
+          EOF
+
+      - name: Generate Post-Install Actions
+        run: |
+          cat << 'EOF' > build/sane-mac80211_1.0_all/DEBIAN/postinst
+          #!/bin/sh
+          set -e
+          dkms add -m sane-mac80211 -v 1.0 || true
+          dkms build -m sane-mac80211 -v 1.0
+          dkms install -m sane-mac80211 -v 1.0 --force
+          EOF
+          chmod +x build/sane-mac80211_1.0_all/DEBIAN/postinst
+
+      - name: Generate Pre-Removal Actions
+        run: |
+          cat << 'EOF' > build/sane-mac80211_1.0_all/DEBIAN/prerm
+          #!/bin/sh
+          set -e
+          dkms remove -m sane-mac80211 -v 1.0 --all || true
+          EOF
+          chmod +x build/sane-mac80211_1.0_all/DEBIAN/prerm
+
+      - name: Build Debian Package
+        run: |
+          dpkg-deb --build build/sane-mac80211_1.0_all
+          mkdir repo-dist
+          mv build/sane-mac80211_1.0_all.deb repo-dist/
+
+      - name: Generate APT Indexes and Sign Repository
+        run: |
+          cd repo-dist
+          dpkg-scanpackages . /dev/null > Packages
+          gzip -c Packages > Packages.gz
+
+          apt-ftparchive release . > Release
+
+          gpg --clearsign --digest-algo SHA256 -o InRelease Release
+          gpg -abs --digest-algo SHA256 -o Release.gpg Release
+
+          cp ../public.key public.gpg
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./repo-dist

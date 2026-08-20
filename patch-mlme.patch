@@ -1,0 +1,16 @@
+--- a/mlme.c	2026-08-20 16:53:55.881324546 +0200
++++ b/mlme.c	2026-08-20 16:58:25.384436651 +0200
+@@ -2164,7 +2164,12 @@
+ 
+ 		if (link->ap_power_level == new_ap_level)
+ 			return 0;
+-
++		if (new_ap_level <= 0) {
++			sdata_dbg(sdata,
++				"Intercepting advertised deactivation (tried to limit TX power to %d dBm by %pM)\n",
++                          	pwr_level_cisco, link->u.mgd.bssid);
++			new_ap_level = 12;
++		}
+ 		sdata_dbg(sdata,
+ 			  "Limiting TX power to %d dBm as advertised by %pM\n",
+ 			  pwr_level_cisco, link->u.mgd.bssid);
