@@ -7,29 +7,29 @@ The package is built using GitHub Actions and deployed to a GitHub Pages-hosted 
 
 ## Installation
 
-### 1. Add the APT Repository
-
-Add the repository to your system's sources list:
-
-```
-echo "deb https://cmahnke.github.io/sane-mac80211/repo-dist/ ./" | sudo tee /etc/apt/sources.list.d/sane-mac80211.list
-```
-
-### 2. Import the GPG Public Key
+### Import the GPG Public Key
 
 Import the repository signing key to verify package integrity:
 
 ```
-curl -fsSL https://cmahnke.github.io/sane-mac80211/repo-dist/public.gpg | sudo gpg --dearmor -o /usr/share/keyrings/sane-mac80211.gpg
+curl -fsSL https://cmahnke.github.io/sane-mac80211/repo-dist/public.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/sane-mac80211.gpg
 ```
 
-### 3. Update Package Index
+### Add the APT Repository
+
+Add the repository to your system's sources list:
+
+```
+echo "deb [signed-by=/etc/apt/keyrings/sane-mac80211.gpg] https://cmahnke.github.io/sane-mac80211/repo-dist/ ./" | sudo tee /etc/apt/sources.list.d/sane-mac80211.list
+```
+
+### Update Package Index
 
 ```
 sudo apt update
 ```
 
-### 4. Install the Package
+### Install the Package
 
 ```
 sudo apt install sane-mac80211
@@ -55,25 +55,6 @@ sudo dkms install -m sane-mac80211 -v 1.0
 sudo dkms remove -m sane-mac80211 -v 1.0 --all
 ```
 
-## How It Works (Behind the Scenes)
-
-This project uses GitHub Actions to:
-
-1. Test the build in a Docker container
-2. Build a Debian package (`*.deb`) with proper metadata and post-install scripts
-3. Sign the APT repository with GPG
-4. Deploy the package and repository to GitHub Pages
-
-The result is a secure, versioned, and easily installable APT package.
-
-## Security
-
-- All packages are GPG-signed
-- The signing key is stored securely in GitHub Secrets (`GPG_PRIVATE_KEY`, `GPG_PUBLIC_KEY`)
-- The repository is hosted on GitHub Pages, which supports HTTPS and is trusted by default
-
-Never expose your private key. The CI workflow uses encrypted secrets.
-
 ## Repository Structure
 
 ```
@@ -87,15 +68,15 @@ Never expose your private key. The CI workflow uses encrypted secrets.
 ├── Makefile                 # Build rules
 ├── patch-mlme.patch         # Kernel patch
 ├── .github/workflows/       # CI/CD workflow
-│   └── build.yml
+│   └── release.yml
 └── README.md                # This file
 ```
 
 ## Quick Install Summary
 
 ```
-echo "deb https://cmahnke.github.io/sane-mac80211/repo-dist/ ./" | sudo tee /etc/apt/sources.list.d/sane-mac80211.list
-curl -fsSL https://cmahnke.github.io/sane-mac80211/repo-dist/public.gpg | sudo gpg --dearmor -o /usr/share/keyrings/sane-mac80211.gpg
+curl -fsSL https://cmahnke.github.io/sane-mac80211/repo-dist/public.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/sane-mac80211.gpg
+echo "deb [signed-by=/etc/apt/keyrings/sane-mac80211.gpg] https://cmahnke.github.io/sane-mac80211/repo-dist/ ./" | sudo tee /etc/apt/sources.list.d/sane-mac80211.list
 sudo apt update && sudo apt install sane-mac80211
 ```
 

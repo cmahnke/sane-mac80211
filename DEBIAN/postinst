@@ -1,0 +1,5 @@
+#!/bin/sh
+set -e
+dkms add -m sane-mac80211 -v 1.0 || true
+dkms build -m sane-mac80211 -v 1.0
+dkms install -m sane-mac80211 -v 1.0 --force
