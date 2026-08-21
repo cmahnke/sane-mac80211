@@ -23,7 +23,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          tags: ghcr.io/${{ secrets.DOCKERHUB_USERNAME }}/sane-mac80211:${{ github.sha }}
+          tags: test
           push: false
 
   package-and-deploy:
