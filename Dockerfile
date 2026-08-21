@@ -12,5 +12,5 @@ COPY /scripts/uname /usr/local/bin/
 RUN chmod +x /usr/local/bin/uname && \
     cd / && make && \
     mkdir -p /usr/src/sane-mac80211-1.0 && \
-    cp dkms.conf Makefile patch-mlme.patch /usr/src/sane-mac80211-1.0/ #&& \
-    #dkms build sane-mac80211/1.0
+    cp dkms.conf Makefile patch-mlme.patch /usr/src/sane-mac80211-1.0/ && \
+    dkms build sane-mac80211/1.0

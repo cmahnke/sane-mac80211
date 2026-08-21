@@ -9,58 +9,22 @@ on:
 
 jobs:
   test-build:
-    name: Test Kernel Module Build
+    name: Test Kernel Module Build (in Docker)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Source
         uses: actions/checkout@v4
 
-      - name: Install Build Tools and Enable Source Repositories
-        run: |
-          if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
-            sudo sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.sources
-          else
-            exit 1
-          fi
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-          sudo apt-get update
-          sudo apt-get install -y build-essential linux-source linux-headers-$(uname -r) patch dkms dpkg-dev
-          # Stupid mismatch of kernel sources and running kernel
-          SOURCE_PKG=$(apt-cache search ^linux-source- | grep -vE '(aws|azure|gcp)' | sort -V | tail -n 1 | awk '{print $1}')
-          BASE_VER=$(echo $SOURCE_PKG | sed 's/linux-source-//')
-          sudo apt-get install -y build-essential patch dkms dpkg-dev $SOURCE_PKG linux-headers-$BASE_VER-generic
-          echo "TARGET_KVERSION=$BASE_VER-generic" >> $GITHUB_ENV
-
-      - name: Mock Environment and Test Build
-        run: |
-          echo "Testing against kernel version: $TARGET_KVERSION"
-          make KVERSION="$TARGET_KVERSION" \
-               KERNEL_DIR="/lib/modules/$TARGET_KVERSION/build" \
-               all
-
-      - name: Test DKMS Installation
-        run: |
-          sudo mkdir -p /usr/src/sane-mac80211-1.0
-          sudo cp dkms.conf Makefile patch-mlme.patch /usr/src/sane-mac80211-1.0/
-
-          sudo dkms add -m sane-mac80211 -v 1.0
-
-          sudo dkms build -m sane-mac80211 -v 1.0 || {
-            echo "::error::DKMS build failed. Dumping make.log:"
-            sudo cat /var/lib/dkms/sane-mac80211/1.0/build/make.log || echo "Failed to read make.log"
-            exit 1
-          }
-
-          sudo dkms install -m sane-mac80211 -v 1.0 || {
-            echo "::error::DKMS install failed. Dumping make.log:"
-            sudo cat /var/lib/dkms/sane-mac80211/1.0/build/make.log || echo "Failed to read make.log"
-            exit 1
-          }
-
-          echo "Verifying module placement..."
-          ls -l /lib/modules/$(uname -r)/updates/dkms/mac80211.ko
-
-          sudo modprobe mac80211 || echo "modprobe failed (expected in CI without specific hardware), but build succeeded!"
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          tags: ghcr.io/${{ secrets.DOCKERHUB_USERNAME }}/sane-mac80211:${{ github.sha }}
+          push: false
 
   package-and-deploy:
     name: Build, Sign, and Deploy APT Repository
