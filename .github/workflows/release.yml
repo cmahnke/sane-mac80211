@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        ubuntu_version: ["25.10", "26.04"]
+        ubuntu_version: ["25.04", "25.10", "26.04"]
     steps:
       - name: Checkout Source
         uses: actions/checkout@v4
@@ -83,19 +83,25 @@ jobs:
         run: |
           echo "${{ secrets.GPG_PRIVATE_KEY }}" > private.key
           echo "${{ secrets.GPG_PUBLIC_KEY }}" > public.key
+
+          mkdir -p ~/.gnupg
+          chmod 700 ~/.gnupg
+          echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
+
           gpg --batch --import private.key
           rm -f private.key
 
       - name: Generate APT Indexes and Sign Repository
         run: |
           cd repo-dist
-          dpkg-scanpackages . /dev/null > Packages
-          gzip -c Packages > Packages.gz
+          dpkg-scanpackages --multiversion . > Packages
+          gzip -k -f Packages
 
           apt-ftparchive release . > Release
 
-          gpg --clearsign --digest-algo SHA256 -o InRelease Release
-          gpg -abs --digest-algo SHA256 -o Release.gpg Release
+          gpg --batch --yes --clearsign --digest-algo SHA256 -o InRelease Release
+
+          gpg --batch --yes -abs --digest-algo SHA256 -o Release.gpg Release
 
           cp ../public.key public.gpg
 
