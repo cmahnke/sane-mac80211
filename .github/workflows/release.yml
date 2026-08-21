@@ -4,57 +4,33 @@ on:
   push:
     branches:
       - main
-    pull_request:
-    workflow_dispatch:
+  pull_request:
+  workflow_dispatch:
 
 jobs:
   test-build:
-    name: Test Kernel Module Build
+    name: Test Kernel Module Build (in Docker) - Ubuntu ${{ matrix.ubuntu_version }}
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        ubuntu_version: ["25.04", "25.10", "26.04"]
     steps:
       - name: Checkout Source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
-      - name: Install Build Tools and Enable Source Repositories
-        run: |
-          if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
-            sudo sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.sources
-          else
-            exit 1
-          fi
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
 
-          sudo apt-get update
-          sudo apt-get install -y build-essential linux-headers-$(uname -r) patch dkms dpkg-dev
+      - name: Replace Ubuntu version in Dockerfile
+        run: sed -i "s/^FROM ubuntu:.*/FROM ubuntu:${{ matrix.ubuntu_version }}/" Dockerfile
 
-      - name: Fetch Exact Kernel Source
-        run: |
-          sudo chmod 755 "$GITHUB_WORKSPACE"
-          apt-get source linux-modules-$(uname -r)
-          ln -s linux-*/ linux-src
-
-      - name: Mock Environment and Test Build
-        run: |
-          KERNEL_VERSION=$(uname -r)
-          echo "Testing against kernel version: $KERNEL_VERSION"
-          make KVERSION="$KERNEL_VERSION" \
-               KERNEL_DIR="/lib/modules/$KERNEL_VERSION/build" \
-               KERNEL_SRC="$(pwd)/linux-src" \
-               all
-
-      - name: Test DKMS Installation
-        run: |
-          sudo mkdir -p /usr/src/sane-mac80211-1.0
-          sudo cp dkms.conf Makefile patch-mlme.patch /usr/src/sane-mac80211-1.0/
-
-          sudo dkms add -m sane-mac80211 -v 1.0
-          sudo dkms build -m sane-mac80211 -v 1.0
-          sudo dkms install -m sane-mac80211 -v 1.0
-
-          echo "Verifying module placement..."
-          ls -l /lib/modules/$(uname -r)/updates/dkms/mac80211.ko
-
-          sudo modprobe mac80211 || echo "modprobe failed (expected in CI without specific hardware), but build succeeded!"
-
+      - name: Build Docker image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          tags: test:${{ github.sha }}-ubuntu${{ matrix.ubuntu_version }}
+          push: false
 
   package-and-deploy:
     name: Build, Sign, and Deploy APT Repository
@@ -62,38 +38,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install Debian Packaging Tools
         run: |
           sudo apt-get update
           sudo apt-get install -y dpkg-dev apt-utils
 
-      - name: Setup GPG Environment
-        run: |
-          echo "${{ secrets.GPG_PRIVATE_KEY }}" > private.key
-          echo "${{ secrets.GPG_PUBLIC_KEY }}" > public.key
-          gpg --import private.key
-
       - name: Create Debian Directory Layout
         run: |
           mkdir -p build/sane-mac80211_1.0_all/usr/src/sane-mac80211-1.0
           mkdir -p build/sane-mac80211_1.0_all/DEBIAN
 
+          cp DEBIAN/* build/sane-mac80211_1.0_all/DEBIAN/
           cp dkms.conf Makefile patch-mlme.patch build/sane-mac80211_1.0_all/usr/src/sane-mac80211-1.0/
-
-      - name: Generate Control Metadata
-        run: |
-          cat << 'EOF' > build/sane-mac80211_1.0_all/DEBIAN/control
-          Package: sane-mac80211
-          Version: 1.0
-          Architecture: all
-          Maintainer: Hotspot Fix Maintainer <maintainer@example.com>
-          Depends: dkms, build-essential
-          Section: net
-          Priority: optional
-          Description: Core patch to force mac80211 to ignore iPhone 0dBm power constraints.
-          EOF
 
       - name: Generate Post-Install Actions
         run: |
@@ -121,16 +79,22 @@ jobs:
           mkdir repo-dist
           mv build/sane-mac80211_1.0_all.deb repo-dist/
 
+      - name: Setup GPG Environment
+        run: |
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
+          echo "${{ secrets.GPG_PUBLIC_KEY }}" | gpg --batch --import
+          echo "${{ secrets.GPG_PUBLIC_KEY }}" > public.key
+
       - name: Generate APT Indexes and Sign Repository
         run: |
           cd repo-dist
-          dpkg-scanpackages . /dev/null > Packages
-          gzip -c Packages > Packages.gz
+          dpkg-scanpackages --multiversion . > Packages
+          gzip -k -f Packages
 
           apt-ftparchive release . > Release
 
-          gpg --clearsign --digest-algo SHA256 -o InRelease Release
-          gpg -abs --digest-algo SHA256 -o Release.gpg Release
+          gpg --batch --yes --clearsign --digest-algo SHA256 -o InRelease Release
+          gpg --batch --yes -abs --digest-algo SHA256 -o Release.gpg Release
 
           cp ../public.key public.gpg
 

@@ -1,0 +1,32 @@
+#!/bin/bash
+
+get_target_kernel() {
+    if [ -n "$TARGET_KERNEL" ]; then
+        echo "$TARGET_KERNEL"
+        return
+    fi
+
+    local header_dir=$(ls -d /usr/src/linux-headers-*-generic 2>/dev/null | sort -V | tail -n1)
+    if [ -n "$header_dir" ]; then
+        basename "$header_dir" | sed 's/linux-headers-//'
+        return
+    fi
+
+    local module_dir=$(ls -d /lib/modules/* 2>/dev/null | sort -V | tail -n1)
+    if [ -n "$module_dir" ]; then
+        basename "$module_dir"
+        return
+    fi
+
+}
+
+TARGET_RELEASE=$(get_target_kernel)
+
+if [ "$1" = "-r" ] || [ "$1" = "--kernel-release" ]; then
+    echo "$TARGET_RELEASE"
+elif [ "$1" = "-a" ] || [ "$1" = "--all" ]; then
+    HOST_RELEASE=$(/bin/uname -r)
+    /bin/uname "$@" | sed "s/$HOST_RELEASE/$TARGET_RELEASE/"
+else
+    exec /bin/uname "$@"
+fi

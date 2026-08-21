@@ -1,0 +1,8 @@
+Package: sane-mac80211
+Version: 1.0
+Architecture: all
+Maintainer: Christian Mahnke <cmahnke@gmail.com>
+Depends: dkms, build-essential, linux-headers-generic, linux-source
+Section: net
+Priority: optional
+Description: Core patch to force mac80211 to ignore iPhone 0dBm power constraints.
