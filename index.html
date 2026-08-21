@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>README</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">README</h1>
+</header>
+<h1
+id="sane-mac80211---debian-package-for-kernel-module"><code>sane-mac80211</code>
+- Debian Package for Kernel Module</h1>
+<p>This repository provides a Debian package
+(<code>sane-mac80211</code>) that installs a custom kernel module for
+improved 802.11 management frame handling, particularly useful for
+certain wireless adapters.</p>
+<p>The package is built using GitHub Actions and deployed to a GitHub
+Pages-hosted APT repository, making it easy to install on Debian/Ubuntu
+systems.</p>
+<h2 id="installation">Installation</h2>
+<h3 id="import-the-gpg-public-key">Import the GPG Public Key</h3>
+<p>Import the repository signing key to verify package integrity:</p>
+<pre><code>curl -fsSL https://cmahnke.github.io/sane-mac80211/repo-dist/public.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/sane-mac80211.gpg</code></pre>
+<h3 id="add-the-apt-repository">Add the APT Repository</h3>
+<p>Add the repository to your system’s sources list:</p>
+<pre><code>echo &quot;deb [signed-by=/etc/apt/keyrings/sane-mac80211.gpg] https://cmahnke.github.io/sane-mac80211/repo-dist/ ./&quot; | sudo tee /etc/apt/sources.list.d/sane-mac80211.list</code></pre>
+<h3 id="update-package-index">Update Package Index</h3>
+<pre><code>sudo apt update</code></pre>
+<h3 id="install-the-package">Install the Package</h3>
+<pre><code>sudo apt install sane-mac80211</code></pre>
+<p>The package will automatically: - Register the module with DKMS -
+Build and install it for your current kernel - Load it at boot (if
+needed)</p>
+<h2 id="manual-usage-optional">Manual Usage (Optional)</h2>
+<p>If you need to manage the module manually:</p>
+<pre><code># Build the module for current kernel
+sudo dkms build -m sane-mac80211 -v 1.0
+
+# Install the module
+sudo dkms install -m sane-mac80211 -v 1.0
+
+# Remove the module (e.g., during upgrades)
+sudo dkms remove -m sane-mac80211 -v 1.0 --all</code></pre>
+<h2 id="repository-structure">Repository Structure</h2>
+<pre><code>.
+├── Dockerfile               # Build environment for testing
+├── DEBIAN/                  # Debian control files
+│   ├── control
+│   ├── postinst
+│   └── prerm
+├── dkms.conf                # DKMS configuration
+├── Makefile                 # Build rules
+├── patch-mlme.patch         # Kernel patch
+├── .github/workflows/       # CI/CD workflow
+│   └── release.yml
+└── README.html                # This file</code></pre>
+<h2 id="quick-install-summary">Quick Install Summary</h2>
+<pre><code>curl -fsSL https://cmahnke.github.io/sane-mac80211/repo-dist/public.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/sane-mac80211.gpg
+echo &quot;deb [signed-by=/etc/apt/keyrings/sane-mac80211.gpg] https://cmahnke.github.io/sane-mac80211/repo-dist/ ./&quot; | sudo tee /etc/apt/sources.list.d/sane-mac80211.list
+sudo apt update &amp;&amp; sudo apt install sane-mac80211</code></pre>
+<p>Now you’re ready to use <code>sane-mac80211</code> on your
+Debian/Ubuntu system.</p>
+</body>
+</html>
