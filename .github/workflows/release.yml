@@ -86,9 +86,10 @@ jobs:
 
           mkdir -p ~/.gnupg
           chmod 700 ~/.gnupg
+          echo "no-symkey-cache" >> ~/.gnupg/gpg.conf
           echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
 
-          gpg --batch --import private.key
+          gpg --batch --no-symkey-cache --passphrase "" --import private.key
           rm -f private.key
 
       - name: Generate APT Indexes and Sign Repository
